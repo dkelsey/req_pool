@@ -174,8 +174,6 @@ handle_cast({cache, Uri, JSON_String, From}, State) ->
 	gen_server:cast(self(), {reply, JSON_String, From}),
 	{noreply, State};
 handle_cast({reply, JSON_String, SendTo}, State) ->
-%	gen_server:reply(From, {ok, JSON_String}),
-%	{noreply, State};
 	SendTo ! {ok, JSON_String},
 	{stop, normal, State};
 handle_cast(_Msg, State) ->
