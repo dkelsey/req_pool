@@ -1,0 +1,33 @@
+%% This is a scratch pad for running erlang code
+%% Everything is saved
+
+
+req_pool_api:start_link().
+req_pool_api:start_pool(req_pool, 2, {req_worker, start_link, []}).
+req_pool_api:run(req_pool, ["http://reddit.com", self()]). % one way to do it will only allow 2 procs to run
+req_pool_api:sync_queue(req_pool, ["http://reddit.com", self()]).
+req_pool_api:sync_queue(req_pool, [<<"http%3A%2F%2Fdigg.com%2Frss%2Ftop.rss">>, self()]). 
+
+erl -pa ./ebin -pa ./deps -pa ./deps/*/ebin
+application:start(jiffy),
+application:start(inets),
+application:start(req_pool)
+
+application:start(jiffy),application:start(inets),application:start(statsd),application:start(req_pool).
+req_pool_api:start_pool(req_pool, 2, {req_worker, start_link, []}).
+req_pool_api:sync_queue(req_pool, [<<"http%3A%2F%2Fdigg.com%2Frss%2Ftop.rss">>, self()]), 
+req_pool_api:sync_queue(req_pool, [<<"http%3A%2F%2Fwww.reddit.com%2F.rss">>, self()]),
+req_pool_api:sync_queue(req_pool, [<<"http%3A%2F%2Frss.nytimes.com%2Fservices%2Fxml%2Frss%2Fnyt%2FHomePage.xml">>, self()]).
+
+
+req_pool_api:stop_pool(req_pool).
+req_pool_api:stop().
+
+% improvemensts
+% # of workers = number of cores
+%   Queue size for each pool?
+%   getting this to work on another server
+%   metering
+%   driving tests
+%   cleanner shut-down
+%
