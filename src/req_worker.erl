@@ -125,7 +125,6 @@ handle_cast({decode_uri, Uri, SendTo}, State) ->
 	statsd:timing("decode_uri", T),
 	{ok, DecodedUri} = rss_wc_lib:decode_uri(Uri),
 %	{ok, Body} = rss_wc_lib:get_uri(Uri),
-%	io:format("in req_worker:handle_cast: decode_uri ~p~n", [DecodedUri]),
 
 %	SendTo ! {ok, Body},
 %	{stop, normal, State};
@@ -136,80 +135,47 @@ handle_cast({decode_uri, Uri, SendTo}, State) ->
 	{noreply, State};
 handle_cast({get_uri, Uri, DecodedUri, SendTo}, State) ->
 	{ok, XMLBody} = rss_wc_lib:get_uri(DecodedUri),
-%
-%	io:format("in req_worker:handle_cast: get_uri ~n"),
-%
 	gen_server:cast(self(), {parse_xml, Uri, XMLBody, SendTo}),
 	{noreply, State};
 handle_cast({parse_xml, Uri, XMLBody, From}, State) ->
 	{ok, Text} = rss_wc_lib:parse_xml(XMLBody, State#state.search_path),
-%		
-%	io:format("in req_worker:handle_cast: parse_xml~n"),
-%	
 	gen_server:cast(self(), {parse_text, Uri, Text, From}),
 	{noreply, State};
 handle_cast({parse_text, Uri, Text, From}, State) ->
 	{ok, FilteredText} = rss_wc_lib:parse_text(Text),
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: parse_text ~n"),
-%-endif.
 	gen_server:cast(self(), {tokenize_text, Uri, FilteredText, From}),
 	{noreply, State};
 handle_cast({tokenize_text, Uri, Text, From}, State) ->
 	{ok, FilteredText} = rss_wc_lib:tokenize_text(Text, State#state.token_string),
-%-ifdef(DEBUG).	
-%	io:format("in req_worker:handle_cast: tokenize_text ~n"),
-%-endif.
 	gen_server:cast(self(), {filter_stopwords, Uri, FilteredText, From}),
 	{noreply, State};
 handle_cast({filter_stopwords, Uri, Text, From}, State) ->
 	{ok, FilteredTokens, StopwordCounts} = rss_wc_lib:filter_stopwords(Text),
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: filter_stopwords ~p~n", [erlang:length(FilteredTokens)]),
-%-endif.	
 	gen_server:cast(self(), {count_tokens, Uri, FilteredTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({count_tokens, Uri, FilteredTokens, StopwordCounts, From}, State) ->
 	{ok, CountedTokens} = rss_wc_lib:count_tokens(FilteredTokens),
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: count_tokens~n"),
-%-endif.	
 	gen_server:cast(self(), {sort_tokens, Uri, CountedTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({sort_tokens, Uri, CountedTokens, StopwordCounts, From}, State) ->
 	{ok, SortedTokens} = rss_wc_lib:sort_tokens(CountedTokens),
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: sort_tokens ~n"),
-%-endif.	
 	gen_server:cast(self(), {limit_tokens, Uri, SortedTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({limit_tokens, Uri, Tokens, StopwordCounts, From}, State) ->
 	{ok, LimitedTokens} = rss_wc_lib:limit_tokens(Tokens, State#state.limit),
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: limit_tokens ~n"),
-%-endif.	
 	gen_server:cast(self(), {format_to_json, Uri, LimitedTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({format_to_json, Uri, Tokens, StopwordCounts, From}, State) ->
 	{ok, JSON_String} = rss_wc_lib:format_to_json(Tokens, StopwordCounts),
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: format_to_json ~n"),
-%-endif.	
 	gen_server:cast(self(), {cache, Uri, JSON_String, From}),
 	{noreply, State};
 handle_cast({cache, Uri, JSON_String, From}, State) ->
 	{ok, cached} = rss_wc_lib:cache(Uri, JSON_String),
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: cache ~n"),
-%-endif.	
 	gen_server:cast(self(), {reply, JSON_String, From}),
 	{noreply, State};
 handle_cast({reply, JSON_String, SendTo}, State) ->
 %	gen_server:reply(From, {ok, JSON_String}),
 %	{noreply, State};
-%-ifdef(DEBUG).		
-%	io:format("in req_worker:handle_cast: reply ~n"),
-%-endif.	
 	SendTo ! {ok, JSON_String},
 	{stop, normal, State};
 handle_cast(_Msg, State) ->
