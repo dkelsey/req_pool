@@ -29,6 +29,12 @@ RSS_Urls = string:tokens(binary_to_list(File), "\n").
 lists:map( fun(X) -> io:format("~p~n", [X]) end, RSS_Urls).
 http_uri:encode("http://00634ca.netsolhost.com/blog/?feed=rss2").
 
+ application:start(inets)
+4: application:start(crypto)
+7: application:start(asn1)
+8: application:start(public_key)
+9: application:start(ssl)
+
 lists:map(
 	fun(X) ->
       req_pool_api:sync_queue(req_pool,
@@ -52,4 +58,5 @@ lists:map(
 %   metering
 %   driving tests
 %   cleanner shut-down
+%   and logging so I can tell which request are failing and where.
 %
