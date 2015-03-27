@@ -23,6 +23,28 @@ req_pool_api:sync_queue(req_pool, [<<"http%3A%2F%2Frss.nytimes.com%2Fservices%2F
 req_pool_api:stop_pool(req_pool).
 req_pool_api:stop().
 
+
+{ok, File} = file:read_file("test/data/curated.txt").
+RSS_Urls = string:tokens(binary_to_list(File), "\n").
+lists:map( fun(X) -> io:format("~p~n", [X]) end, RSS_Urls).
+http_uri:encode("http://00634ca.netsolhost.com/blog/?feed=rss2").
+
+lists:map(
+	fun(X) ->
+      req_pool_api:sync_queue(req_pool,
+							  [erlang:list_to_binary(http_uri:encode(X)),
+							   self()])
+	end,
+	["http://00634ca.netsolhost.com/blog/?feed=rss2","http://00634ca.netsolhost.com/blog/?feed=rss2"]).
+
+lists:map(
+	fun(X) ->
+      req_pool_api:sync_queue(req_pool,
+							  [erlang:list_to_binary(http_uri:encode(X)),
+							   self()])
+	end,
+	RSS_Urls).
+
 % improvemensts
 % # of workers = number of cores
 %   Queue size for each pool?
