@@ -119,58 +119,68 @@ handle_call(_Request, _From, State) ->
 %% ====================================================================
 %
 handle_cast({decode_uri, Uri, SendTo}, State) ->
-%	io:format("in req_worker:handle_info~n"),
-%	{ok, Body} = do_get_uri(Uri),
     {T, {ok, DecodedUri}} = timer:tc(rss_wc_lib, decode_uri, [Uri]),
 	statsd:timing("decode_uri", T),
-	{ok, DecodedUri} = rss_wc_lib:decode_uri(Uri),
-%	{ok, Body} = rss_wc_lib:get_uri(Uri),
-
-%	SendTo ! {ok, Body},
-%	{stop, normal, State};
-
-%	{ok, XMLBody} = do_get_uri(DecodedUri),
-%	gen_server:cast(?MODULE, {get_xml, Uri, DecodedUri, SendTo}),
 	gen_server:cast(self(), {get_uri, Uri, DecodedUri, SendTo}),
 	{noreply, State};
 handle_cast({get_uri, Uri, DecodedUri, SendTo}, State) ->
-	{ok, XMLBody} = rss_wc_lib:get_uri(DecodedUri),
+	{T, {ok, XMLBody}} = timer:tc(rss_wc_lib, get_uri, [DecodedUri]),
+	statsd:timing("get_uri", T),
+	statsd:count("get_uri", erlang:length(XMLBody)),
 	gen_server:cast(self(), {parse_xml, Uri, XMLBody, SendTo}),
 	{noreply, State};
 handle_cast({parse_xml, Uri, XMLBody, From}, State) ->
-	{ok, Text} = rss_wc_lib:parse_xml(XMLBody, State#state.search_path),
+	{T, {ok, Text}} = timer:tc(rss_wc_lib, parse_xml, [XMLBody, State#state.search_path]),
+	statsd:timing("parse_xml", T),
+	statsd:count("parse_xml", erlang:length(Text)),
 	gen_server:cast(self(), {parse_text, Uri, Text, From}),
 	{noreply, State};
 handle_cast({parse_text, Uri, Text, From}, State) ->
-	{ok, FilteredText} = rss_wc_lib:parse_text(Text),
+	{T, {ok, FilteredText}} = timer:tc(rss_wc_lib, parse_text, [Text]),
+	statsd:timing("parse_text", T),
+	statsd:count("parse_text", erlang:length(FilteredText)),
 	gen_server:cast(self(), {tokenize_text, Uri, FilteredText, From}),
 	{noreply, State};
 handle_cast({tokenize_text, Uri, Text, From}, State) ->
-	{ok, FilteredText} = rss_wc_lib:tokenize_text(Text, State#state.token_string),
+	{T, {ok, FilteredText}} = timer:tc(rss_wc_lib, tokenize_text, [Text, State#state.token_string]),
+	statsd:timing("tokenize_text", T),
+	statsd:count("tokenize_text", erlang:length(FilteredText)),
 	gen_server:cast(self(), {filter_stopwords, Uri, FilteredText, From}),
 	{noreply, State};
 handle_cast({filter_stopwords, Uri, Text, From}, State) ->
-	{ok, FilteredTokens, StopwordCounts} = rss_wc_lib:filter_stopwords(Text),
+	{T, {ok, FilteredTokens, StopwordCounts}} = timer:tc(rss_wc_lib, filter_stopwords, [Text]),
+	statsd:timing("filter_stopwords", T),
+	statsd:count("filter_stopwords.filteredTokens", erlang:length(FilteredTokens)),
+	statsd:count("filter_stopwords.StopwordCount", erlang:length(StopwordCounts)),
 	gen_server:cast(self(), {count_tokens, Uri, FilteredTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({count_tokens, Uri, FilteredTokens, StopwordCounts, From}, State) ->
-	{ok, CountedTokens} = rss_wc_lib:count_tokens(FilteredTokens),
+	{T, {ok, CountedTokens}} = timer:tc(rss_wc_lib, count_tokens, [FilteredTokens]),
+	statsd:timing("count_tokens", T),
+	statsd:count("count_tokens", erlang:length(CountedTokens)),
 	gen_server:cast(self(), {sort_tokens, Uri, CountedTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({sort_tokens, Uri, CountedTokens, StopwordCounts, From}, State) ->
-	{ok, SortedTokens} = rss_wc_lib:sort_tokens(CountedTokens),
+	{T, {ok, SortedTokens}} = timer:tc(rss_wc_lib, sort_tokens, [CountedTokens]),
+	statsd:timing("sort_tokens", T),
+	statsd:count("sort_tokens", erlang:length(SortedTokens)),
 	gen_server:cast(self(), {limit_tokens, Uri, SortedTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({limit_tokens, Uri, Tokens, StopwordCounts, From}, State) ->
-	{ok, LimitedTokens} = rss_wc_lib:limit_tokens(Tokens, State#state.limit),
+	{T, {ok, LimitedTokens}} = timer:tc(rss_wc_lib, limit_tokens, [Tokens, State#state.limit]),
+	statsd:timing("limit_tokens", T),
+	statsd:count("limit_tokens", erlang:length(LimitedTokens)),
 	gen_server:cast(self(), {format_to_json, Uri, LimitedTokens, StopwordCounts, From}),
 	{noreply, State};
 handle_cast({format_to_json, Uri, Tokens, StopwordCounts, From}, State) ->
-	{ok, JSON_String} = rss_wc_lib:format_to_json(Tokens, StopwordCounts),
+	{T, {ok, JSON_String}} = timer:tc(rss_wc_lib, format_to_json, [Tokens, StopwordCounts]),
+	statsd:timing("format_to_json", T),
+	statsd:count("format_to_json", erlang:length(erlang:binary_to_list(JSON_String))),
 	gen_server:cast(self(), {cache, Uri, JSON_String, From}),
 	{noreply, State};
 handle_cast({cache, Uri, JSON_String, From}, State) ->
-	{ok, cached} = rss_wc_lib:cache(Uri, JSON_String),
+	{T, {ok, cached}} = timer:tc(rss_wc_lib, cache, [Uri, JSON_String]),
+	statsd:timing("cache", T),
 	gen_server:cast(self(), {reply, JSON_String, From}),
 	{noreply, State};
 handle_cast({reply, JSON_String, SendTo}, State) ->
