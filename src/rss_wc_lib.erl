@@ -49,10 +49,28 @@ get_uri(DecodedUri) ->
 			{ok, XMLBody}
 	end.
 parse_xml(XMLBody, SearchPath) ->
-	{XML_Body, _RemainingText = "" } = xmerl_scan:string(XMLBody),	
-	XML_Items = xmerl_xpath:string(SearchPath, XML_Body),
-	Text = lists:concat(lists:map(fun(XmlText) -> #xmlText{value=TextValue} = XmlText, string:to_lower(unicode:characters_to_list(TextValue, utf8)) end, XML_Items)),
-	{ok, Text}.
+	try xmerl_scan:string(XMLBody) of
+		{XML_Body, _RemainingText = "" } ->
+			XML_Items = xmerl_xpath:string(SearchPath, XML_Body),
+			Text = lists:concat(lists:map(fun(XmlText) -> #xmlText{value=TextValue} = XmlText, string:to_lower(unicode:characters_to_list(TextValue, utf8)) end, XML_Items)),
+			{ok, Text};
+		{RootEl=#xmlElement{}, Misc} ->
+			%io:format("~p~n", [Ret1]),
+			%io:format("~p~n", [Ret2]),
+			%XML_Items = xmerl_xpath:string(SearchPath, Misc),
+			%io:format("~p~n",[RootEl#xmlElement.content]),
+		%	{XML_Body, _} = xmerl_scan:string(Misc, [{encoding, latin1}]),
+		%	io:format("XML_Body: ~p~n", [XML_Body]),
+		%	XML_Items = xmerl_xpath:string(SearchPath, XML_Body),
+		%	Text = lists:concat(lists:map(fun(XmlText) -> #xmlText{value=TextValue} = XmlText, string:to_lower(unicode:characters_to_list(TextValue, utf8)) end, XML_Items)),
+		%	io:format("~p~n",[Text]),
+		%	{ok, Text}
+			{ret1, RootEl, ret2, Misc}
+	catch
+		error:function_clause -> {error, caught, function_clause};
+		error:Error -> {error, caught, Error}
+	end.
+%	{ok, Text}.
 parse_text(Text) ->
 	LowerCase = string:to_lower(Text),
 	FilteredText = lists:map(fun(C) -> case (C > 255) of true -> 65; _ -> C end end, LowerCase),

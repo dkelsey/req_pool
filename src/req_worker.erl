@@ -130,10 +130,25 @@ handle_cast({get_uri, Uri, DecodedUri, SendTo}, State) ->
 	gen_server:cast(self(), {parse_xml, Uri, XMLBody, SendTo}),
 	{noreply, State};
 handle_cast({parse_xml, Uri, XMLBody, From}, State) ->
-	{T, {ok, Text}} = timer:tc(rss_wc_lib, parse_xml, [XMLBody, State#state.search_path]),
-	statsd:timing("parse_xml", T),
-	statsd:count("parse_xml", erlang:length(Text)),
-	gen_server:cast(self(), {parse_text, Uri, Text, From}),
+	case timer:tc(rss_wc_lib, parse_xml, [XMLBody, State#state.search_path]) of
+		{T, {ok, Text}} ->
+			statsd:timing("parse_xml", T),
+			statsd:count("parse_xml", erlang:length(Text)),
+			gen_server:cast(self(), {parse_text, Uri, Text, From});
+		{T, {error, caught, function_clause }} ->
+			statsd:timing("parse_xml", T),
+			statsd:count("parse_xml", erlang:length("")),
+			io:format("HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW "),
+			% this should route somewhere else
+			gen_server:cast(self(), {parse_text, Uri, "", From});
+		{T, {ret1, Ret1, ret2, Ret2}} -> % have to figure this out another time.  Documentation is ... sparce.
+			statsd:timing("parse_xml", T),
+			statsd:count("parse_xml", erlang:length("")),
+%			io:format("Ret1:  ~p~n", [Ret1]),
+%			io:format("Ret2:  ~s~n", [Ret2]),  % this does look like the xml document...can't parse it though.
+			% this should route somewhere else
+			gen_server:cast(self(), {parse_text, Uri, "", From})
+	end,
 	{noreply, State};
 handle_cast({parse_text, Uri, Text, From}, State) ->
 	{T, {ok, FilteredText}} = timer:tc(rss_wc_lib, parse_text, [Text]),

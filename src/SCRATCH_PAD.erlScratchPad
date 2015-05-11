@@ -20,6 +20,8 @@ req_pool_api:sync_queue(req_pool, [<<"http%3A%2F%2Fwww.reddit.com%2F.rss">>, sel
 req_pool_api:sync_queue(req_pool, [<<"http%3A%2F%2Frss.nytimes.com%2Fservices%2Fxml%2Frss%2Fnyt%2FHomePage.xml">>, self()]).
 
 
+req_pool_api:sync_queue(req_pool, [erlang:list_to_binary(http_uri:encode("http://00634ca.netsolhost.com/blog/?feed=rss2")), self()]).
+
 req_pool_api:stop_pool(req_pool).
 req_pool_api:stop().
 
@@ -29,11 +31,7 @@ RSS_Urls = string:tokens(binary_to_list(File), "\n").
 lists:map( fun(X) -> io:format("~p~n", [X]) end, RSS_Urls).
 http_uri:encode("http://00634ca.netsolhost.com/blog/?feed=rss2").
 
- application:start(inets)
-4: application:start(crypto)
-7: application:start(asn1)
-8: application:start(public_key)
-9: application:start(ssl)
+application:start(inets),application:start(crypto),application:start(asn1),application:start(public_key),application:start(ssl)
 
 lists:map(
 	fun(X) ->
@@ -50,6 +48,16 @@ lists:map(
 							   self()])
 	end,
 	RSS_Urls).
+
+	try xmerl_scan:string(XMLBody) of
+		{XML_Body, _RemainingText = "" } ->
+			XML_Items = xmerl_xpath:string(SearchPath, XML_Body),
+			Text = lists:concat(lists:map(fun(XmlText) -> #xmlText{value=TextValue} = XmlText, string:to_lower(unicode:characters_to_list(TextValue, utf8)) end, XML_Items)),
+			{ok, Text}
+	catch
+		error:Error -> {error, caught, Error};
+		_ -> ok
+	end.
 
 % improvemensts
 % # of workers = number of cores
