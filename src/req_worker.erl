@@ -141,7 +141,7 @@ handle_cast({parse_xml, Uri, XMLBody, From}, State) ->
 			io:format("HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW HERE NOW "),
 			% this should route somewhere else
 			gen_server:cast(self(), {parse_text, Uri, "", From});
-		{T, {ret1, Ret1, ret2, Ret2}} -> % have to figure this out another time.  Documentation is ... sparce.
+		{T, {ret1, _Ret1, ret2, _Ret2}} -> % have to figure this out another time.  Documentation is ... sparce.
 			statsd:timing("parse_xml", T),
 			statsd:count("parse_xml", erlang:length("")),
 %			io:format("Ret1:  ~p~n", [Ret1]),
